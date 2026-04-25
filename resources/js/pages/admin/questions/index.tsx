@@ -35,7 +35,13 @@ type AdminQuestion = {
     practice_answers_count: number;
     exam_answers_count: number;
     passage: { id: number; title: string } | null;
-    audio_asset: { id: number; title: string; is_real_audio: boolean } | null;
+    audio_asset: {
+        id: number;
+        title: string;
+        is_real_audio: boolean;
+        is_approved_for_exam: boolean;
+        quality_badges: string[];
+    } | null;
     skill_tag: { id: number; name: string; domain: string } | null;
     options: QuestionOption[];
 };
@@ -368,9 +374,22 @@ function LinkedContent({ question }: { question: AdminQuestion }) {
 
     if (question.section_type === 'listening') {
         return (
-            <p className="text-sm text-slate-500">
-                {question.audio_asset?.title ?? 'No audio'}
-            </p>
+            <div className="grid gap-2 text-sm text-slate-500">
+                <p>{question.audio_asset?.title ?? 'No audio'}</p>
+                {question.audio_asset && (
+                    <span
+                        className={`w-fit rounded-md px-2 py-1 text-xs font-semibold ${
+                            question.audio_asset.is_approved_for_exam
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/25 dark:text-emerald-100'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/25 dark:text-amber-100'
+                        }`}
+                    >
+                        {question.audio_asset.is_approved_for_exam
+                            ? 'Audio ready'
+                            : 'Audio needs review'}
+                    </span>
+                )}
+            </div>
         );
     }
 

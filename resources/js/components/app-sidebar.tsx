@@ -1,10 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    AudioLines,
     BarChart3,
     BookOpenCheck,
     Brain,
     ClipboardList,
+    FileQuestion,
     FileText,
+    Gauge,
     LayoutGrid,
     LibraryBig,
     Mic,
@@ -26,6 +29,10 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { dashboard as adminDashboard } from '@/routes/admin';
+import { index as adminAudioAssetsIndex } from '@/routes/admin/audio-assets';
+import { index as adminQuestionsIndex } from '@/routes/admin/questions';
+import { index as adminReadingPassagesIndex } from '@/routes/admin/reading-passages';
 import { index as analyticsIndex } from '@/routes/analytics';
 import { setup as examSetup } from '@/routes/exam';
 import { index as mistakesIndex } from '@/routes/mistakes';
@@ -85,6 +92,32 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+const adminNavItems: NavItem[] = [
+    {
+        title: 'Admin Dashboard',
+        href: adminDashboard(),
+        icon: Gauge,
+    },
+    {
+        title: 'Questions',
+        href: adminQuestionsIndex(),
+        icon: FileQuestion,
+        startsWith: true,
+    },
+    {
+        title: 'Audio Assets',
+        href: adminAudioAssetsIndex(),
+        icon: AudioLines,
+        startsWith: true,
+    },
+    {
+        title: 'Reading Passages',
+        href: adminReadingPassagesIndex(),
+        icon: BookOpenCheck,
+        startsWith: true,
+    },
+];
+
 export function AppSidebar() {
     const { auth } = usePage().props;
     const isAdmin = auth.user?.role === 'admin';
@@ -118,6 +151,9 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
+                {isAdmin && (
+                    <NavMain items={adminNavItems} label="Content CMS" />
+                )}
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 

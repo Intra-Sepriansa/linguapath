@@ -44,8 +44,12 @@ type AdminQuestion = {
         title: string;
         status: string;
         is_real_audio: boolean;
+        is_approved_for_exam: boolean;
+        quality_badges: string[];
         duration_seconds: number;
         audio_url: string | null;
+        transcript_reviewed_at: string | null;
+        approved_at: string | null;
         transcript?: string;
     } | null;
     skill_tag: { id: number; name: string; domain: string } | null;
@@ -257,10 +261,22 @@ export default function AdminQuestionsShow({
                                 </h2>
                                 <p className="mt-2 text-sm text-slate-500">
                                     {question.audio_asset.title} ·{' '}
-                                    {question.audio_asset.is_real_audio
-                                        ? 'Real audio'
-                                        : 'Transcript fallback'}
+                                    {question.audio_asset.is_approved_for_exam
+                                        ? 'Approved for exam'
+                                        : 'Needs review'}
                                 </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {question.audio_asset.quality_badges.map(
+                                        (badge) => (
+                                            <span
+                                                key={badge}
+                                                className={`rounded-md px-2 py-1 text-xs font-semibold ${badgeClass(badge)}`}
+                                            >
+                                                {badge}
+                                            </span>
+                                        ),
+                                    )}
+                                </div>
                                 {question.audio_asset.audio_url && (
                                     <audio
                                         className="mt-4 w-full"
@@ -282,6 +298,18 @@ export default function AdminQuestionsShow({
             </div>
         </>
     );
+}
+
+function badgeClass(badge: string): string {
+    if (badge === 'Approved' || badge === 'Real Audio') {
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/25 dark:text-emerald-100';
+    }
+
+    if (badge === 'Transcript Reviewed') {
+        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/25 dark:text-blue-100';
+    }
+
+    return 'bg-amber-50 text-amber-700 dark:bg-amber-950/25 dark:text-amber-100';
 }
 
 function Meta({ label, value }: { label: string; value: string }) {

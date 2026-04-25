@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\QuestionType;
 use App\Enums\SkillType;
+use App\Models\AudioAsset;
 use App\Models\Passage;
 use App\Models\Question;
 use Illuminate\Foundation\Http\FormRequest;
@@ -80,6 +81,21 @@ class StoreQuestionRequest extends FormRequest
 
             if ($this->input('section_type') !== SkillType::Listening->value && filled($this->input('audio_asset_id'))) {
                 $validator->errors()->add('audio_asset_id', 'Audio asset can only be attached to listening questions.');
+            }
+
+            if (
+                $this->isExamReady()
+                && $this->input('section_type') === SkillType::Listening->value
+                && filled($this->input('audio_asset_id'))
+            ) {
+                $audio = AudioAsset::query()->find((int) $this->input('audio_asset_id'));
+
+                if ($audio && ! $audio->isApprovedForExam()) {
+                    $validator->errors()->add(
+                        'audio_asset_id',
+                        'Ready or published listening questions require real uploaded audio with reviewed transcript and approval.'
+                    );
+                }
             }
         });
     }

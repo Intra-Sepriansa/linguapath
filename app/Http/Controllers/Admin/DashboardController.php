@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\SkillType;
 use App\Http\Controllers\Controller;
 use App\Models\AudioAsset;
 use App\Models\Lesson;
@@ -10,14 +9,19 @@ use App\Models\Passage;
 use App\Models\Question;
 use App\Models\SkillTag;
 use App\Models\Vocabulary;
+use App\Services\ExamReadinessService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly ExamReadinessService $examReadiness) {}
+
     public function __invoke(): Response
     {
+        $examReadiness = $this->examReadiness->dashboardPayload();
+
         return Inertia::render('admin/dashboard', [
             'metrics' => [
                 'lessons' => Lesson::query()->count(),
@@ -26,23 +30,16 @@ class DashboardController extends Controller
                 'passages' => Passage::query()->count(),
                 'vocabulary' => Vocabulary::query()->count(),
                 'skill_tags' => SkillTag::query()->count(),
-                'missing_audio' => Question::query()
-                    ->where('section_type', SkillType::Listening)
-                    ->where('exam_eligible', true)
-                    ->whereIn('status', Question::ACTIVE_STATUSES)
-                    ->whereDoesntHave('audioAsset', fn ($query) => $query->where('is_real_audio', true))
-                    ->count(),
+                'missing_audio' => $this->examReadiness->listeningAudioBlockedQuestionQuery()->count(),
                 'short_passages' => Passage::query()->where('word_count', '<', 300)->count(),
                 'missing_explanation' => Question::query()->whereNull('explanation')->orWhere('explanation', '')->count(),
                 'missing_skill_tag' => Question::query()->whereNull('skill_tag_id')->count(),
                 'missing_difficulty' => Question::query()->whereNull('difficulty')->orWhere('difficulty', '')->count(),
             ],
+            'examReadiness' => $examReadiness,
             'qualityFlags' => [
-                'listening_without_real_audio' => Question::query()
-                    ->where('section_type', SkillType::Listening)
-                    ->where('exam_eligible', true)
-                    ->whereIn('status', Question::ACTIVE_STATUSES)
-                    ->whereDoesntHave('audioAsset', fn ($query) => $query->where('is_real_audio', true))
+                'listening_without_real_audio' => $this->examReadiness
+                    ->listeningAudioBlockedQuestionQuery()
                     ->limit(8)
                     ->get(['id', 'question_text'])
                     ->map(fn (Question $question): array => [

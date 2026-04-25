@@ -22,9 +22,13 @@ export type AudioAssetOption = {
     title: string;
     status: string;
     is_real_audio: boolean;
+    is_approved_for_exam: boolean;
+    quality_badges: string[];
     duration_seconds: number;
     accent: string;
     audio_url: string | null;
+    transcript_reviewed_at: string | null;
+    approved_at: string | null;
 };
 
 export type SkillTagOption = {
@@ -114,7 +118,7 @@ export function QuestionForm({
     const selectedPassage = options.passages.find(
         (passage) => String(passage.id) === form.data.passage_id,
     );
-    const warnings = qualityWarnings(form.data);
+    const warnings = qualityWarnings(form.data, selectedAudio);
     const isActive = ['ready', 'published'].includes(form.data.status);
     const isReady = isActive && warnings.length === 0;
 
@@ -364,11 +368,23 @@ export function QuestionForm({
                                         {selectedAudio.title}
                                     </p>
                                     <p className="mt-1 text-slate-500">
-                                        {selectedAudio.is_real_audio
-                                            ? 'Real audio'
-                                            : 'Transcript fallback'}{' '}
-                                        · {selectedAudio.duration_seconds}s
+                                        {selectedAudio.duration_seconds}s ·{' '}
+                                        {selectedAudio.is_approved_for_exam
+                                            ? 'Approved for exam'
+                                            : 'Needs review'}
                                     </p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {selectedAudio.quality_badges.map(
+                                            (badge) => (
+                                                <span
+                                                    key={badge}
+                                                    className={`rounded-md px-2 py-1 text-xs font-semibold ${badgeClass(badge)}`}
+                                                >
+                                                    {badge}
+                                                </span>
+                                            ),
+                                        )}
+                                    </div>
                                     {selectedAudio.audio_url && (
                                         <audio
                                             className="mt-3 w-full"
@@ -558,7 +574,10 @@ function normalizeOptions(
     });
 }
 
-function qualityWarnings(data: QuestionFormData): string[] {
+function qualityWarnings(
+    data: QuestionFormData,
+    selectedAudio?: AudioAssetOption,
+): string[] {
     const warnings: string[] = [];
     const isActive = ['ready', 'published'].includes(data.status);
     const correctCount = data.options.filter(
@@ -597,6 +616,16 @@ function qualityWarnings(data: QuestionFormData): string[] {
         warnings.push('Listening question without audio');
     }
 
+    if (
+        data.section_type === 'listening' &&
+        data.audio_asset_id &&
+        !selectedAudio?.is_approved_for_exam
+    ) {
+        warnings.push(
+            'Listening audio must be real, transcript reviewed, and approved',
+        );
+    }
+
     if (data.options.some((option) => !option.text.trim())) {
         warnings.push('Every option needs text');
     }
@@ -610,4 +639,16 @@ function qualityWarnings(data: QuestionFormData): string[] {
 
 export function labelize(value: string | null | undefined): string {
     return (value ?? '').replaceAll('_', ' ');
+}
+
+function badgeClass(badge: string): string {
+    if (badge === 'Approved' || badge === 'Real Audio') {
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/25 dark:text-emerald-100';
+    }
+
+    if (badge === 'Transcript Reviewed') {
+        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/25 dark:text-blue-100';
+    }
+
+    return 'bg-amber-50 text-amber-700 dark:bg-amber-950/25 dark:text-amber-100';
 }

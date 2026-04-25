@@ -194,6 +194,60 @@ test('ready listening question requires an audio asset', function () {
         ->assertSessionHasErrors('audio_asset_id');
 });
 
+test('ready listening question requires real approved audio', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $tag = createAdminQuestionSkillTag('listening');
+    $transcriptOnlyAudio = createAdminQuestionAudio([
+        'is_real_audio' => false,
+        'approved_at' => null,
+        'approved_by' => null,
+    ]);
+    $unapprovedAudio = createAdminQuestionAudio([
+        'approved_at' => null,
+        'approved_by' => null,
+    ]);
+    $unreviewedAudio = createAdminQuestionAudio([
+        'transcript_reviewed_at' => null,
+        'approved_at' => null,
+        'approved_by' => null,
+    ]);
+    $missingTranscriptAudio = createAdminQuestionAudio([
+        'transcript' => '',
+        'approved_at' => now(),
+        'approved_by' => $admin->id,
+    ]);
+
+    foreach ([$transcriptOnlyAudio, $unapprovedAudio, $unreviewedAudio, $missingTranscriptAudio] as $audio) {
+        $this->actingAs($admin)
+            ->post(route('admin.questions.store'), validQuestionPayload([
+                'section_type' => SkillType::Listening->value,
+                'question_type' => QuestionType::ShortConversation->value,
+                'skill_tag_id' => $tag->id,
+                'audio_asset_id' => $audio->id,
+                'passage_id' => null,
+                'evidence_sentence' => null,
+                'question_text' => 'What does the second speaker imply?',
+            ]))
+            ->assertSessionHasErrors('audio_asset_id');
+    }
+
+    $approvedAudio = createAdminQuestionAudio();
+
+    $this->actingAs($admin)
+        ->post(route('admin.questions.store'), validQuestionPayload([
+            'section_type' => SkillType::Listening->value,
+            'question_type' => QuestionType::ShortConversation->value,
+            'skill_tag_id' => $tag->id,
+            'audio_asset_id' => $approvedAudio->id,
+            'passage_id' => null,
+            'evidence_sentence' => null,
+            'question_text' => 'What does the second speaker imply?',
+        ]))
+        ->assertRedirect();
+
+    expect(Question::query()->where('audio_asset_id', $approvedAudio->id)->exists())->toBeTrue();
+});
+
 test('admin can update a question and options without duplicating options', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $question = createQuestionWithOptions();
@@ -280,6 +334,27 @@ test('quality warnings are computed and exposed on preview', function () {
             ->where('question.quality_warnings', fn ($warnings): bool => collect($warnings)->contains('Missing explanation')));
 });
 
+test('listening quality warnings include audio readiness issues', function () {
+    $audio = createAdminQuestionAudio([
+        'is_real_audio' => false,
+        'transcript' => '',
+        'transcript_reviewed_at' => null,
+        'approved_at' => null,
+        'approved_by' => null,
+    ]);
+    $question = Question::factory()->create([
+        'section_type' => SkillType::Listening,
+        'question_type' => QuestionType::ShortConversation,
+        'audio_asset_id' => $audio->id,
+        'skill_tag_id' => createAdminQuestionSkillTag('listening')->id,
+    ]);
+
+    expect($question->qualityWarnings())->toContain('Listening audio is transcript only')
+        ->and($question->qualityWarnings())->toContain('Missing transcript')
+        ->and($question->qualityWarnings())->toContain('Transcript not reviewed')
+        ->and($question->qualityWarnings())->toContain('Listening audio not approved');
+});
+
 function validQuestionPayload(array $overrides = []): array
 {
     return array_replace_recursive([
@@ -338,25 +413,31 @@ function createAdminQuestionPassage(): Passage
     ]);
 }
 
-function createAdminQuestionAudio(): AudioAsset
+function createAdminQuestionAudio(array $overrides = []): AudioAsset
 {
-    return AudioAsset::query()->create([
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    return AudioAsset::query()->create(array_merge([
         'title' => 'Short Conversation',
         'audio_url' => '/storage/listening-audio/test.mp3',
         'file_path' => null,
         'mime_type' => 'audio/mpeg',
         'file_size' => 1024,
-        'uploaded_by' => User::factory()->create(['role' => 'admin'])->id,
+        'uploaded_by' => $admin->id,
         'is_real_audio' => true,
         'playback_limit_exam' => 1,
         'status' => 'ready',
         'transcript' => 'Speaker A: Are you ready? Speaker B: I finished the review.',
+        'transcript_reviewed_at' => now(),
+        'approved_at' => now(),
+        'approved_by' => $admin->id,
+        'review_notes' => 'Approved test audio.',
         'speaker_notes' => 'Short conversation.',
         'duration_seconds' => 18,
         'accent' => 'american',
         'speed' => 1.0,
         'source' => 'test',
-    ]);
+    ], $overrides));
 }
 
 function createAdminQuestionSkillTag(string $domain): SkillTag

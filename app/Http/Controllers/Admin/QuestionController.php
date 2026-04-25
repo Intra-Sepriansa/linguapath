@@ -159,8 +159,7 @@ class QuestionController extends Controller
                 ->where('section_type', SkillType::Reading)
                 ->where(fn (Builder $query) => $query->whereNull('evidence_sentence')->orWhere('evidence_sentence', '')),
             'missing_audio' => $query
-                ->where('section_type', SkillType::Listening)
-                ->where(fn (Builder $query) => $query->whereNull('audio_asset_id')->orWhereDoesntHave('audioAsset', fn (Builder $audioQuery) => $audioQuery->where('is_real_audio', true))),
+                ->where(fn (Builder $query) => $this->applyInvalidListeningAudioFilter($query)),
             'invalid_options' => $this->applyInvalidOptionsFilter($query),
             default => null,
         };
@@ -175,6 +174,28 @@ class QuestionController extends Controller
         });
     }
 
+    private function applyInvalidListeningAudioFilter(Builder $query): void
+    {
+        $query
+            ->where('section_type', SkillType::Listening)
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('audio_asset_id')
+                    ->orWhereDoesntHave('audioAsset', fn (Builder $audioQuery) => $this->applyExamReadyAudioFilter($audioQuery));
+            });
+    }
+
+    private function applyExamReadyAudioFilter(Builder $query): void
+    {
+        $query
+            ->where('is_real_audio', true)
+            ->whereIn('status', AudioAsset::EXAM_READY_STATUSES)
+            ->whereNotNull('approved_at')
+            ->whereNotNull('transcript_reviewed_at')
+            ->where(fn (Builder $query) => $query->whereNotNull('transcript')->where('transcript', '!=', ''))
+            ->where(fn (Builder $query) => $query->whereNotNull('file_path')->orWhereNotNull('audio_url'));
+    }
+
     /**
      * @return array<string, int>
      */
@@ -187,9 +208,8 @@ class QuestionController extends Controller
             'archived' => Question::query()->where('status', 'archived')->count(),
             'invalid_options' => tap(Question::query(), fn (Builder $query) => $this->applyInvalidOptionsFilter($query))->count(),
             'missing_audio' => Question::query()
-                ->where('section_type', SkillType::Listening)
                 ->whereIn('status', Question::ACTIVE_STATUSES)
-                ->where(fn (Builder $query) => $query->whereNull('audio_asset_id')->orWhereDoesntHave('audioAsset', fn (Builder $audioQuery) => $audioQuery->where('is_real_audio', true)))
+                ->where(fn (Builder $query) => $this->applyInvalidListeningAudioFilter($query))
                 ->count(),
             'missing_evidence' => Question::query()
                 ->where('section_type', SkillType::Reading)
@@ -292,7 +312,7 @@ class QuestionController extends Controller
                     'word_count' => $passage->word_count,
                 ]),
             'audioAssets' => AudioAsset::query()
-                ->latest()
+                ->latest('id')
                 ->limit(200)
                 ->get()
                 ->map(fn (AudioAsset $asset): array => [
@@ -300,9 +320,13 @@ class QuestionController extends Controller
                     'title' => $asset->title,
                     'status' => $asset->status,
                     'is_real_audio' => $asset->is_real_audio,
+                    'is_approved_for_exam' => $asset->isApprovedForExam(),
+                    'quality_badges' => $asset->qualityBadges(),
                     'duration_seconds' => $asset->duration_seconds,
                     'accent' => $asset->accent,
                     'audio_url' => $asset->playbackUrl(),
+                    'transcript_reviewed_at' => $asset->transcript_reviewed_at?->toIso8601String(),
+                    'approved_at' => $asset->approved_at?->toIso8601String(),
                 ]),
             'skillTags' => SkillTag::query()
                 ->orderBy('domain')
@@ -355,8 +379,12 @@ class QuestionController extends Controller
                 'title' => $question->audioAsset->title,
                 'status' => $question->audioAsset->status,
                 'is_real_audio' => $question->audioAsset->is_real_audio,
+                'is_approved_for_exam' => $question->audioAsset->isApprovedForExam(),
+                'quality_badges' => $question->audioAsset->qualityBadges(),
                 'duration_seconds' => $question->audioAsset->duration_seconds,
                 'audio_url' => $question->audioAsset->playbackUrl(),
+                'transcript_reviewed_at' => $question->audioAsset->transcript_reviewed_at?->toIso8601String(),
+                'approved_at' => $question->audioAsset->approved_at?->toIso8601String(),
             ] : null,
             'skill_tag' => $question->skillTag ? [
                 'id' => $question->skillTag->id,

@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Admin\AudioAssetController as AdminAudioAssetController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\ReadingPassageController as AdminReadingPassageController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamSimulationController;
 use App\Http\Controllers\LessonController;
@@ -64,6 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', AdminDashboardController::class)->name('dashboard');
             Route::get('audio-assets', [AdminAudioAssetController::class, 'index'])->name('audio-assets.index');
             Route::post('audio-assets', [AdminAudioAssetController::class, 'store'])->name('audio-assets.store');
+            Route::patch('audio-assets/bulk-review', [AdminAudioAssetController::class, 'bulkReview'])->name('audio-assets.bulk-review');
+            Route::patch('audio-assets/{audioAsset}/review', [AdminAudioAssetController::class, 'review'])->name('audio-assets.review');
             Route::resource('questions', AdminQuestionController::class);
             Route::resource('reading-passages', AdminReadingPassageController::class)
                 ->parameters(['reading-passages' => 'readingPassage']);

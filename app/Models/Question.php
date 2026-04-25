@@ -109,8 +109,22 @@ class Question extends Model
             $warnings[] = 'Listening question without audio';
         }
 
-        if ($this->section_type === SkillType::Listening && $this->audioAsset && ! $this->audioAsset->is_real_audio) {
-            $warnings[] = 'Listening audio is transcript fallback';
+        if ($this->section_type === SkillType::Listening && $this->audioAsset) {
+            if (! $this->audioAsset->is_real_audio) {
+                $warnings[] = 'Listening audio is transcript only';
+            }
+
+            if (blank($this->audioAsset->transcript)) {
+                $warnings[] = 'Missing transcript';
+            }
+
+            if ($this->audioAsset->transcript_reviewed_at === null) {
+                $warnings[] = 'Transcript not reviewed';
+            }
+
+            if ($this->audioAsset->approved_at === null) {
+                $warnings[] = 'Listening audio not approved';
+            }
         }
 
         if ($optionsCount !== 4) {

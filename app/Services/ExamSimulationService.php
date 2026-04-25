@@ -21,6 +21,8 @@ class ExamSimulationService
 {
     public const SCORE_DISCLAIMER = 'Internal estimate, not an official ETS score.';
 
+    public function __construct(private readonly ExamReadinessService $examReadiness) {}
+
     /**
      * @return array<string, array{label: string, count: int, duration_seconds: int, scaled_min: int, scaled_max: int, position: int}>
      */
@@ -357,17 +359,9 @@ class ExamSimulationService
      */
     private function questionsForSection(SkillType $section, int $count): Collection
     {
-        $query = Question::query()
-            ->where('exam_eligible', true)
-            ->whereIn('status', Question::ACTIVE_STATUSES)
-            ->where('section_type', $section)
+        $query = $this->examReadiness
+            ->examReadyQuestionQuery($section)
             ->with(['options', 'audioAsset', 'passage']);
-
-        if ($section === SkillType::Reading) {
-            $query->whereHas('passage', fn ($passageQuery) => $passageQuery
-                ->whereBetween('word_count', [300, 700])
-                ->whereIn('status', ['ready', 'published', 'reviewed']));
-        }
 
         $questions = $query
             ->inRandomOrder()
@@ -567,7 +561,7 @@ class ExamSimulationService
     private function ensureOwner(User $user, ExamSimulation $simulation): void
     {
         if ($simulation->user_id !== $user->id) {
-            throw new AuthorizationException();
+            throw new AuthorizationException;
         }
     }
 }

@@ -28,14 +28,14 @@ TOEFL and ETS are trademarks of their respective owners. LinguaPath provides int
 | Area | Status | Notes |
 |---|---|---|
 | 60-day study path | Done | Lesson path, mini-tests, completion tracking. |
-| TOEFL ITP simulation | Partial | 140 questions and section lock exist; timer is now server-synced with internal score disclaimer. |
-| Listening audio | Partial | Audio upload foundation exists; seeded content still uses transcript fallback until real audio is uploaded. |
-| Reading passages | Partial | TOEFL-style 300-700 word imported passages added for exam-eligible reading content. |
+| TOEFL ITP simulation | Partial | 140 questions, section lock, server-synced timer, score disclaimer, and exam readiness gates are implemented. |
+| Listening audio | Partial | Real audio upload, review/approval gate, bulk review, and manifest import workflow exist; seeded fallback audio is not exam-ready. |
+| Reading passages | Partial | TOEFL-style 300-700 word passages are linked to reading questions; exam-ready reading now requires evidence sentences. |
 | Vocabulary SRS | Done | Daily deck, quiz options, due review, status tracking. |
 | Mistake journal | Done | Wrong answers are logged with review status and explanations. |
 | Speaking practice | Partial | Recording UI and heuristic feedback; no production-grade pronunciation analysis yet. |
 | Writing practice | Partial | Prompt and heuristic scoring; no full grammar correction engine yet. |
-| Admin/CMS | Partial | Admin role, dashboard, content health metrics, and audio upload are implemented. Full CRUD for all content remains planned. |
+| Admin/CMS | Partial | Admin dashboard, questions/options CRUD, reading passages CRUD, audio assets, quality badges, safe archive, and readiness metrics are implemented. |
 | REST API/Sanctum | Planned | Deferred until the core learning product is stable. |
 | Billing/SaaS | Planned | Subscription table exists but billing is not implemented. |
 
@@ -44,7 +44,7 @@ TOEFL and ETS are trademarks of their respective owners. LinguaPath provides int
 After running the database seeder:
 
 - User: `test@example.com` / `password`
-- Admin: `admin@example.com` / `password`
+- Admin: configured with `LINGUAPATH_ADMIN_EMAIL` and `LINGUAPATH_ADMIN_PASSWORD` in `.env`
 
 ## Core Screenshots To Capture
 
@@ -90,6 +90,16 @@ PHP formatting:
 vendor/bin/pint --dirty --format agent
 ```
 
+## Listening Audio Import
+
+LinguaPath can import locally supplied, legal listening audio through a manifest:
+
+```bash
+php artisan linguapath:import-listening-audio
+```
+
+By default, the command reads `DEMO_AUDIO_IMPORT_PATH` and expects audio files inside an `audio/` folder next to the manifest. Demo or imported audio must be original, licensed, or otherwise legal to use. LinguaPath does not include or claim official ETS listening audio.
+
 MySQL compatibility check when a MySQL connection is configured:
 
 ```bash
@@ -108,19 +118,18 @@ php artisan test --compact --database=mysql
 ## Known Limitations
 
 - TOEFL score conversion is an internal estimate, not an ETS-validated scaled score.
-- Seeded listening content does not include real recorded audio by default.
+- Seeded listening content does not include real recorded audio by default and is intentionally excluded from full exam selection until approved real audio is attached.
 - Speaking feedback is heuristic and does not perform real pronunciation scoring.
 - Writing feedback is heuristic and does not perform full grammar correction.
-- Admin/CMS currently covers dashboard metrics and audio upload; full content CRUD is still planned.
+- Admin/CMS is functional for questions, options, passages, and audio review, but still needs larger editorial workflows for production-scale content operations.
 - Public REST API and Sanctum token authentication are not implemented.
 - MySQL compatibility should be verified before production deployment.
 
 ## Roadmap
 
-1. Complete admin CRUD for lessons, questions, options, passages, vocabulary, skill tags, and prompts.
-2. Attach real audio assets to listening questions and enforce audio quality flags.
-3. Expand TOEFL-style reading passages and review item quality with an English/TOEFL subject matter expert.
+1. Import or upload at least 50 legal approved real audio assets for Listening exam readiness.
+2. Expand editorial workflow for reviewing passage sets and listening scripts.
+3. Complete admin CRUD for lessons, vocabulary, skill tags, and prompts.
 4. Improve speaking and writing feedback with stronger linguistic analysis.
 5. Add E2E browser tests for exam, admin, vocabulary, and mistake review flows.
 6. Add REST API/Sanctum only after the web product reaches stable core quality.
-# linguapath
